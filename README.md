@@ -1,4 +1,4 @@
-# Go Training Dashboard
+![Banner](docs/gtd-banner.svg)
 
 English | [中文](README.zh.md)
 

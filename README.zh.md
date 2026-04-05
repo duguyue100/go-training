@@ -1,4 +1,4 @@
-# 围棋训练仪表盘
+![Banner](docs/gtd-banner.svg)
 
 [English](README.md) | 中文
 
