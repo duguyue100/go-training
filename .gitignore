@@ -13,9 +13,6 @@ build/
 .mypy_cache/
 .ruff_cache/
 
-# Images copied from katrain (not source-controlled — copy from .venv at setup)
-app/static/img/
-
 # Training data (personal SGF files)
 training/
 self-play/

@@ -1,3 +1,8 @@
+# Vendored from KaTrain by Sander Land
+# https://github.com/sanderland/katrain
+# Copyright (c) 2020 Sander Land — MIT License
+# Original source: katrain/core/sgf_parser.py
+
 import copy
 import chardet
 import math
@@ -17,7 +22,9 @@ class Move:
         xa + c for xa in "ABCDEFGH" for c in "ABCDEFGHJKLMNOPQRSTUVWXYZ"
     ]  # board size 52+ support
     PLAYERS = "BW"
-    SGF_COORD = list("ABCDEFGHIJKLMNOPQRSTUVWXYZ".lower()) + list("ABCDEFGHIJKLMNOPQRSTUVWXYZ")  # sgf goes to 52
+    SGF_COORD = list("ABCDEFGHIJKLMNOPQRSTUVWXYZ".lower()) + list(
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    )  # sgf goes to 52
 
     @classmethod
     def from_gtp(cls, gtp_coords, player="B"):
@@ -25,7 +32,9 @@ class Move:
         if "pass" in gtp_coords.lower():
             return cls(coords=None, player=player)
         match = re.match(r"([A-Z]+)(\d+)", gtp_coords)
-        return cls(coords=(Move.GTP_COORD.index(match[1]), int(match[2]) - 1), player=player)
+        return cls(
+            coords=(Move.GTP_COORD.index(match[1]), int(match[2]) - 1), player=player
+        )
 
     @classmethod
     def from_sgf(cls, sgf_coords, board_size, player="B"):
@@ -35,7 +44,10 @@ class Move:
         ):  # [tt] can be used as "pass" for <= 19x19 board
             return cls(coords=None, player=player)
         return cls(
-            coords=(Move.SGF_COORD.index(sgf_coords[0]), board_size[1] - Move.SGF_COORD.index(sgf_coords[1]) - 1),
+            coords=(
+                Move.SGF_COORD.index(sgf_coords[0]),
+                board_size[1] - Move.SGF_COORD.index(sgf_coords[1]) - 1,
+            ),
             player=player,
         )
 
@@ -116,11 +128,15 @@ class SGFNode:
 
     @staticmethod
     def _escape_value(value):
-        return re.sub(r"([\]\\])", r"\\\1", value) if isinstance(value, str) else value  # escape \ and ]
+        return (
+            re.sub(r"([\]\\])", r"\\\1", value) if isinstance(value, str) else value
+        )  # escape \ and ]
 
     @staticmethod
     def _unescape_value(value):
-        return re.sub(r"\\([\]\\])", r"\1", value) if isinstance(value, str) else value  # unescape \ and ]
+        return (
+            re.sub(r"\\([\]\\])", r"\1", value) if isinstance(value, str) else value
+        )  # unescape \ and ]
 
     def sgf(self, **xargs) -> str:
         """Generates an SGF, calling sgf_properties on each node with the given xargs, so it can filter relevant properties if needed."""
@@ -145,7 +161,9 @@ class SGFNode:
                 if len(item.children) == 1:
                     stack.append(item.children[0])
                 elif item.children:
-                    stack += sum([[")", c, "("] for c in item.ordered_children[::-1]], [])
+                    stack += sum(
+                        [[")", c, "("] for c in item.ordered_children[::-1]], []
+                    )
         return sgf_str
 
     def add_list_property(self, property: str, values: List):
@@ -261,14 +279,21 @@ class SGFNode:
                 if ":" not in sgf_coord
             }
             for p in to_be_expanded:
-                from_coord, to_coord = [Move.from_sgf(c, board_size=board_size) for c in p.split(":")[:2]]
+                from_coord, to_coord = [
+                    Move.from_sgf(c, board_size=board_size) for c in p.split(":")[:2]
+                ]
                 for x in range(from_coord.coords[0], to_coord.coords[0] + 1):
-                    for y in range(to_coord.coords[1], from_coord.coords[1] + 1):  # sgf upside dn
+                    for y in range(
+                        to_coord.coords[1], from_coord.coords[1] + 1
+                    ):  # sgf upside dn
                         if 0 <= x < board_size[0] and 0 <= y < board_size[1]:
                             coords.add(Move((x, y), player=player))
             return list(coords)
         else:
-            return [Move.from_sgf(sgf_coord, player=player, board_size=board_size) for sgf_coord in placements]
+            return [
+                Move.from_sgf(sgf_coord, player=player, board_size=board_size)
+                for sgf_coord in placements
+            ]
 
     @property
     def placements(self) -> List[Move]:
@@ -366,7 +391,9 @@ class SGFNode:
     @property
     def player(self):
         """Returns player that moved last. nb root is considered white played if no handicap stones are placed"""
-        if "B" in self.properties or ("AB" in self.properties and "W" not in self.properties):
+        if "B" in self.properties or (
+            "AB" in self.properties and "W" not in self.properties
+        ):
             return "B"
         else:
             return "W"
@@ -388,20 +415,43 @@ class SGFNode:
                 far_x += 1
                 near_x -= 1
                 spacing = (far_x - near_x) / (stones_per_row - 1)
-            coords = list({math.floor(0.5 + near_x + i * spacing) for i in range(stones_per_row)})
+            coords = list(
+                {math.floor(0.5 + near_x + i * spacing) for i in range(stones_per_row)}
+            )
             stones = sorted(
                 [(x, y) for x in coords for y in coords],
-                key=lambda xy: -((xy[0] - (board_size_x - 1) / 2) ** 2 + (xy[1] - (board_size_y - 1) / 2) ** 2),
+                key=lambda xy: (
+                    -(
+                        (xy[0] - (board_size_x - 1) / 2) ** 2
+                        + (xy[1] - (board_size_y - 1) / 2) ** 2
+                    )
+                ),
             )
         else:  # max 9
-            stones = [(far_x, far_y), (near_x, near_y), (far_x, near_y), (near_x, far_y)]
+            stones = [
+                (far_x, far_y),
+                (near_x, near_y),
+                (far_x, near_y),
+                (near_x, far_y),
+            ]
             if n_handicaps % 2 == 1:
                 stones.append((middle_x, middle_y))
-            stones += [(near_x, middle_y), (far_x, middle_y), (middle_x, near_y), (middle_x, far_y)]
+            stones += [
+                (near_x, middle_y),
+                (far_x, middle_y),
+                (middle_x, near_y),
+                (middle_x, far_y),
+            ]
         if tygem:
             stones[2], stones[3] = stones[3], stones[2]
         self.set_property(
-            "AB", list({Move(stone).sgf(board_size=(board_size_x, board_size_y)) for stone in stones[:n_handicaps]})
+            "AB",
+            list(
+                {
+                    Move(stone).sgf(board_size=(board_size_x, board_size_y))
+                    for stone in stones[:n_handicaps]
+                }
+            ),
         )
 
 
@@ -410,7 +460,9 @@ class SGF:
 
     _NODE_CLASS = SGFNode  # Class used for SGF Nodes, can change this to something that inherits from SGFNode
     # https://xkcd.com/1171/
-    SGFPROP_PAT = re.compile(r"\s*(?:\(|\)|;|(\w+)((\s*\[([^\]\\]|\\.)*\])+))", flags=re.DOTALL)
+    SGFPROP_PAT = re.compile(
+        r"\s*(?:\(|\)|;|(\w+)((\s*\[([^\]\\]|\\.)*\])+))", flags=re.DOTALL
+    )
     SGF_PAT = re.compile(r"\(;.*\)", flags=re.DOTALL)
 
     @classmethod
@@ -453,7 +505,9 @@ class SGF:
             try:
                 decoded = bin_contents.decode(encoding=encoding, errors="ignore")
             except LookupError:
-                decoded = bin_contents.decode(encoding=cls.DEFAULT_ENCODING, errors="ignore")
+                decoded = bin_contents.decode(
+                    encoding=cls.DEFAULT_ENCODING, errors="ignore"
+                )
             if is_ngf:
                 return cls.parse_ngf(decoded)
             if is_gib:
@@ -466,7 +520,9 @@ class SGF:
         try:
             self.ix = self.contents.index("(") + 1
         except ValueError:
-            raise ParseError(f"Parse error: Expected '(' at start, found {self.contents[:50]}")
+            raise ParseError(
+                f"Parse error: Expected '(' at start, found {self.contents[:50]}"
+            )
         self.root = self._NODE_CLASS()
         self._parse_branch(self.root)
 
@@ -483,16 +539,23 @@ class SGF:
                 self._parse_branch(self._NODE_CLASS(parent=current_move))
             elif matched_item == ";":
                 # ignore ;) for old SGF
-                useless = self.ix < len(self.contents) and self.contents[self.ix :].strip() == ")"
+                useless = (
+                    self.ix < len(self.contents)
+                    and self.contents[self.ix :].strip() == ")"
+                )
                 # ignore ; that generate empty nodes
                 if not (current_move.empty or useless):
                     current_move = self._NODE_CLASS(parent=current_move)
             else:
                 property, value = match[1], match[2].strip()[1:-1]
                 values = re.split(r"\]\s*\[", value)
-                current_move.add_list_property(property, [SGFNode._unescape_value(v) for v in values])
+                current_move.add_list_property(
+                    property, [SGFNode._unescape_value(v) for v in values]
+                )
         if self.ix < len(self.contents):
-            raise ParseError(f"Parse Error: unexpected character at {self.contents[self.ix:self.ix+25]}")
+            raise ParseError(
+                f"Parse Error: unexpected character at {self.contents[self.ix : self.ix + 25]}"
+            )
         raise ParseError("Parse Error: expected ')' at end of input.")
 
     # NGF parser adapted from https://github.com/fohristiwhirl/gofish/
@@ -541,7 +604,9 @@ class SGF:
 
         if handicap >= 2:
             root.set_property("HA", handicap)
-            root.place_handicap_stones(handicap, tygem=True)  # While this isn't Tygem, it uses the same layout
+            root.place_handicap_stones(
+                handicap, tygem=True
+            )  # While this isn't Tygem, it uses the same layout
 
         if komi:
             root.set_property("KM", komi)
@@ -571,7 +636,6 @@ class SGF:
             if len(line) >= 7:
                 if line[0:2] == "PM":
                     if line[4] in ["B", "W"]:
-
                         # move format is similar to SGF, but uppercase and out-by-1
 
                         key = line[4]
@@ -579,7 +643,9 @@ class SGF:
                         if raw_move == "aa":
                             value = ""  # pass
                         else:
-                            value = chr(ord(raw_move[0]) - 1) + chr(ord(raw_move[1]) - 1)
+                            value = chr(ord(raw_move[0]) - 1) + chr(
+                                ord(raw_move[1]) - 1
+                            )
 
                         node = cls._NODE_CLASS(parent=node)
                         node.set_property(key, value)
@@ -658,7 +724,9 @@ class SGF:
                 if "DT" not in root.properties:
                     try:
                         match = re.search(r"C(\d\d\d\d):(\d\d):(\d\d)", line)
-                        date = "{}-{}-{}".format(match.group(1), match.group(2), match.group(3))
+                        date = "{}-{}-{}".format(
+                            match.group(1), match.group(2), match.group(3)
+                        )
                         root.set_property("DT", date)
                     except:  # noqa E722
                         pass
@@ -699,7 +767,9 @@ class SGF:
                     x = int(move[4])
                     y = 18 - int(move[5])
                     if not (0 <= x < 19 and 0 <= y < 19):
-                        raise ParseError(f"Coordinates for move ({x},{y}) out of range on line {line}")
+                        raise ParseError(
+                            f"Coordinates for move ({x},{y}) out of range on line {line}"
+                        )
                     value = Move(coords=(x, y)).sgf(board_size=(19, 19))
                 except IndexError:
                     continue
