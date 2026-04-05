@@ -72,7 +72,7 @@ async def get_stats():
         "trends": {
             "dates": dates,
             "mean_points_lost": [s.mean_points_lost for s in summaries],
-            "accuracy": [s.accuracy for s in summaries],
+            "stddev_points_lost": [s.stddev_points_lost for s in summaries],
             "best_move_rate": [round(s.best_move_rate * 100, 1) for s in summaries],
             "top5_policy_rate": [
                 round(s.top5_policy_rate * 100, 1)
@@ -87,9 +87,17 @@ async def get_stats():
             "avg_mean_points_lost": round(
                 sum(s.mean_points_lost for s in summaries) / len(summaries), 2
             ),
-            "avg_accuracy": round(
-                sum(s.accuracy for s in summaries) / len(summaries), 1
-            ),
+            "avg_policy_rank": round(
+                sum(
+                    s.avg_policy_rank
+                    for s in summaries
+                    if s.avg_policy_rank is not None
+                )
+                / max(1, sum(1 for s in summaries if s.avg_policy_rank is not None)),
+                1,
+            )
+            if any(s.avg_policy_rank is not None for s in summaries)
+            else None,
             "avg_best_move_rate": round(
                 sum(s.best_move_rate for s in summaries) / len(summaries), 3
             ),

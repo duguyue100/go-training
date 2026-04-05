@@ -32,7 +32,7 @@ class GameSummary(BaseModel):
     # Computed statistics (human player only)
     mean_points_lost: float
     max_points_lost: float
-    accuracy: float  # 100 * 0.75 ^ mean_points_lost (approx)
+    stddev_points_lost: float | None = None  # population std-dev of per-move pts lost
     best_move_rate: float  # fraction
     good_move_rate: float  # fraction (points_lost < 1.0)
 
@@ -47,6 +47,21 @@ class GameSummary(BaseModel):
     avg_policy_rank: float | None = None
     top1_policy_rate: float | None = None
     top5_policy_rate: float | None = None
+
+    # Phase breakdown (KaTrain boundaries: ceil(fraction × boardW × boardH))
+    # None when fewer than 5 human moves fall in that phase
+    phase_opening_pts_lost: float | None = (
+        None  # fraction [0, 0.14) → moves 0–50 on 19×19
+    )
+    phase_midgame_pts_lost: float | None = (
+        None  # fraction [0.14, 0.40) → moves 51–144 on 19×19
+    )
+    phase_endgame_pts_lost: float | None = (
+        None  # fraction [0.40, ∞)  → moves 145+ on 19×19
+    )
+
+    # Opening policy rank: avg policy rank restricted to opening-phase moves
+    opening_avg_policy_rank: float | None = None
 
 
 class MoveCoord(BaseModel):
@@ -72,7 +87,7 @@ class GameDetail(BaseModel):
 class TrendData(BaseModel):
     dates: list[str]
     mean_points_lost: list[float]
-    accuracy: list[float]
+    stddev_points_lost: list[float | None]
     best_move_rate: list[float]
     top5_policy_rate: list[float | None]
     undo_count: list[int]
@@ -81,7 +96,7 @@ class TrendData(BaseModel):
 
 class OverallStats(BaseModel):
     avg_mean_points_lost: float
-    avg_accuracy: float
+    avg_policy_rank: float | None = None
     avg_best_move_rate: float
     total_undos: int
 

@@ -40,22 +40,22 @@
                     <div class="card-value">{{ stats.total_games || 0 }}</div>
                 </div>
                 <div class="card">
-                    <div class="card-label">{{ t('avgPointsLost') }}</div>
+                    <div class="card-label">{{ t('avgPointsLost') }}<info-tip tip-key="avgPointsLost" :locale="locale"></info-tip></div>
                     <div class="card-value">{{ formatNum(stats.overall?.avg_mean_points_lost) }}</div>
                 </div>
                 <div class="card">
-                    <div class="card-label">{{ t('accuracy') }} {{ t('approxLabel') }}</div>
-                    <div class="card-value">{{ formatPct(stats.overall?.avg_accuracy) }}</div>
+                    <div class="card-label">{{ t('avgPolicyRank') }}<info-tip tip-key="avgPolicyRank" :locale="locale"></info-tip></div>
+                    <div class="card-value">{{ stats.overall?.avg_policy_rank != null ? '#' + formatNum(stats.overall.avg_policy_rank) : '—' }}</div>
                 </div>
                 <div class="card">
-                    <div class="card-label">{{ t('bestMoveRate') }}</div>
+                    <div class="card-label">{{ t('bestMoveRate') }}<info-tip tip-key="bestMoveRate" :locale="locale"></info-tip></div>
                     <div class="card-value">{{ formatPct100(stats.overall?.avg_best_move_rate) }}</div>
                 </div>
             </section>
 
             <!-- Charts Row 1: Progress Over Time -->
             <section class="chart-section">
-                <h2>{{ t('progressOverTime') }}</h2>
+                <h2>{{ t('progressOverTime') }}<info-tip tip-key="progressChart" :locale="locale"></info-tip></h2>
                 <div class="chart-container" style="height: 280px; margin-bottom: 0.75rem;">
                     <canvas id="progressChart"></canvas>
                 </div>
@@ -73,7 +73,7 @@
                     </div>
                 </div>
                 <div class="chart-half">
-                    <h2>{{ t('undoTrend') }}</h2>
+                    <h2>{{ t('undoTrend') }}<info-tip tip-key="undoTrend" :locale="locale"></info-tip></h2>
                     <div class="chart-container" style="height: 260px;">
                         <canvas id="undoChart"></canvas>
                     </div>
@@ -93,7 +93,6 @@
                                 <th class="sortable" @click="setSort('ai_name')">{{ t('opponent') }} <span class="sort-icon">{{ sortIcon('ai_name') }}</span></th>
                                 <th class="sortable" @click="setSort('total_moves')">{{ t('moves') }} <span class="sort-icon">{{ sortIcon('total_moves') }}</span></th>
                                 <th class="sortable" @click="setSort('mean_points_lost')">{{ t('avgPointsLost') }} <span class="sort-icon">{{ sortIcon('mean_points_lost') }}</span></th>
-                                <th class="sortable" @click="setSort('accuracy')">{{ t('accuracy') }} <span class="sort-icon">{{ sortIcon('accuracy') }}</span></th>
                                 <th class="sortable" @click="setSort('best_move_rate')">{{ t('bestMoveRate') }} <span class="sort-icon">{{ sortIcon('best_move_rate') }}</span></th>
                                 <th class="sortable" @click="setSort('undo_count')">{{ t('undoCount') }} <span class="sort-icon">{{ sortIcon('undo_count') }}</span></th>
                             </tr>
@@ -109,13 +108,12 @@
                                     <td>{{ game.ai_name }}{{ game.ai_rank ? ' (' + game.ai_rank + ')' : '' }}</td>
                                     <td>{{ game.total_moves }}</td>
                                     <td :class="ptlossClass(game.mean_points_lost)">{{ game.mean_points_lost }}</td>
-                                    <td>{{ game.accuracy }}%</td>
                                     <td>{{ formatPct100(game.best_move_rate) }}</td>
                                     <td>{{ game.undo_count }}</td>
                                 </tr>
                                 <!-- Expanded detail row -->
                                 <tr v-if="expandedGame === game.filename" class="detail-row">
-                                    <td colspan="9">
+                                    <td colspan="8">
                                         <div v-if="detailLoading" class="detail-loading">
                                             <div class="spinner small"></div>
                                         </div>
@@ -155,6 +153,54 @@
                                                         </span>
                                                     </div>
 
+                                                    <!-- Phase breakdown -->
+                                                    <div class="phase-breakdown">
+                                                        <div class="phase-breakdown-title">{{ t('phaseBreakdown') }}<info-tip tip-key="phaseBreakdown" :locale="locale"></info-tip></div>
+                                                        <div class="phase-row">
+                                                            <span class="phase-label">{{ t('phaseOpening') }}</span>
+                                                            <div class="phase-bar-wrap">
+                                                                <div class="phase-bar"
+                                                                     :class="phaseClass(gameDetail.summary.phase_opening_pts_lost)"
+                                                                     :style="{ width: phaseBarWidth(gameDetail.summary.phase_opening_pts_lost) + '%' }">
+                                                                </div>
+                                                            </div>
+                                                            <span class="phase-value" :class="phaseClass(gameDetail.summary.phase_opening_pts_lost)">
+                                                                {{ gameDetail.summary.phase_opening_pts_lost != null ? gameDetail.summary.phase_opening_pts_lost : t('phaseTooFewMoves') }}
+                                                            </span>
+                                                        </div>
+                                                        <div class="phase-row">
+                                                            <span class="phase-label">{{ t('phaseMidgame') }}</span>
+                                                            <div class="phase-bar-wrap">
+                                                                <div class="phase-bar"
+                                                                     :class="phaseClass(gameDetail.summary.phase_midgame_pts_lost)"
+                                                                     :style="{ width: phaseBarWidth(gameDetail.summary.phase_midgame_pts_lost) + '%' }">
+                                                                </div>
+                                                            </div>
+                                                            <span class="phase-value" :class="phaseClass(gameDetail.summary.phase_midgame_pts_lost)">
+                                                                {{ gameDetail.summary.phase_midgame_pts_lost != null ? gameDetail.summary.phase_midgame_pts_lost : t('phaseTooFewMoves') }}
+                                                            </span>
+                                                        </div>
+                                                        <div class="phase-row">
+                                                            <span class="phase-label">{{ t('phaseEndgame') }}</span>
+                                                            <div class="phase-bar-wrap">
+                                                                <div class="phase-bar"
+                                                                     :class="phaseClass(gameDetail.summary.phase_endgame_pts_lost)"
+                                                                     :style="{ width: phaseBarWidth(gameDetail.summary.phase_endgame_pts_lost) + '%' }">
+                                                                </div>
+                                                            </div>
+                                                            <span class="phase-value" :class="phaseClass(gameDetail.summary.phase_endgame_pts_lost)">
+                                                                {{ gameDetail.summary.phase_endgame_pts_lost != null ? gameDetail.summary.phase_endgame_pts_lost : t('phaseTooFewMoves') }}
+                                                            </span>
+                                                        </div>
+                                                        <div v-if="gameDetail.summary.opening_avg_policy_rank != null" class="phase-policy-row">
+                                                            <span>{{ t('openingPolicyRank') }}<info-tip tip-key="openingPolicyRank" :locale="locale"></info-tip>:</span>
+                                                            <span class="phase-policy-value">{{ gameDetail.summary.opening_avg_policy_rank }}</span>
+                                                            <span v-if="gameDetail.summary.avg_policy_rank != null" style="color: var(--text-secondary)">
+                                                                ({{ t('avgPolicyRank') }}: {{ gameDetail.summary.avg_policy_rank }})
+                                                            </span>
+                                                        </div>
+                                                    </div>
+
                                                     <!-- Combined score + winrate chart -->
                                                     <div class="detail-chart-block">
                                                         <div class="detail-chart-header">
@@ -174,6 +220,7 @@
 
                                                     <!-- Move quality histogram — labelled segments -->
                                                     <div class="hist-block">
+                                                        <div class="hist-title">{{ t('moveQualityLegend') }}<info-tip tip-key="histogram" :locale="locale"></info-tip></div>
                                                         <div class="hist-bar-row">
                                                             <div v-for="(count, i) in gameDetail.summary.histogram"
                                                                  :key="i"

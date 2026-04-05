@@ -3,10 +3,23 @@ Statistics engine: compute per-game statistics from parsed comments.
 Mirrors KaTrain's game_report() logic as closely as possible.
 """
 
+import math
+
 from app.comment_parser import ParsedComment
 
 # KaTrain's default evaluation thresholds (from config.json)
 EVAL_THRESHOLDS = [12, 6, 3, 1.5, 0.5, 0]
+
+# KaTrain phase boundaries as board fractions (from popups.kv)
+# boundary_move = ceil(fraction * boardW * boardH)
+PHASE_FRACTIONS = {
+    "opening": (0.0, 0.14),
+    "midgame": (0.14, 0.40),
+    "endgame": (0.40, 1e9),
+}
+
+# Minimum human moves required in a phase to report a meaningful value
+PHASE_MIN_MOVES = 5
 
 
 def evaluation_class(
@@ -30,20 +43,52 @@ def evaluation_class(
     return i
 
 
-def compute_game_stats(human_comments: list[ParsedComment]) -> dict:
+def phase_boundaries(board_size: tuple[int, int]) -> dict[str, tuple[int, int]]:
+    """
+    Convert KaTrain's board-fraction phase definitions to absolute move-number ranges.
+    Uses ceil(fraction * boardW * boardH) exactly as KaTrain does.
+
+    Returns dict: phase_name → (start_move_inclusive, end_move_exclusive)
+    Move numbers are 1-based (first move = move 1).
+    """
+    bw, bh = board_size
+    squares = bw * bh
+    bounds = {}
+    for name, (lo, hi) in PHASE_FRACTIONS.items():
+        start = math.ceil(lo * squares) + 1  # convert to 1-based
+        end = math.ceil(hi * squares) + 1 if hi < 1e8 else 10_000
+        bounds[name] = (start, end)
+    return bounds
+
+
+def _stddev(values: list[float]) -> float | None:
+    """Population standard deviation, None if fewer than 2 values."""
+    n = len(values)
+    if n < 2:
+        return None
+    mean = sum(values) / n
+    variance = sum((v - mean) ** 2 for v in values) / n
+    return math.sqrt(variance)
+
+
+def compute_game_stats(
+    human_comments: list[ParsedComment],
+    board_size: tuple[int, int] = (19, 19),
+) -> dict:
     """
     Compute aggregate statistics for the human player's moves.
 
-    This mirrors KaTrain's game_report() output structure.
-
     Parameters:
-        human_comments: List of ParsedComment for the human player's moves only.
-                       Moves without analysis (score=None) are excluded.
+        human_comments:   ParsedComment list for the human player's moves only.
+                          Moves without analysis (score=None) are excluded.
+        board_size:       (width, height) used for phase boundary computation.
 
     Returns dict with keys:
-        mean_points_lost, max_points_lost, accuracy,
+        mean_points_lost, max_points_lost, stddev_points_lost,
         best_move_rate, good_move_rate, histogram,
-        avg_policy_rank, top1_policy_rate
+        avg_policy_rank, top1_policy_rate, top5_policy_rate,
+        phase_opening_pts_lost, phase_midgame_pts_lost, phase_endgame_pts_lost,
+        opening_avg_policy_rank
     """
     # Filter to moves that have analysis data
     analyzed = [c for c in human_comments if c.score is not None]
@@ -59,11 +104,6 @@ def compute_game_stats(human_comments: list[ParsedComment]) -> dict:
 
     # --- Max points lost ---
     max_ptloss = max(pts_lost_values) if pts_lost_values else 0.0
-
-    # --- Accuracy (approximation: uniform weights) ---
-    # KaTrain: accuracy = 100 * 0.75 ^ weighted_ptloss
-    # We use: accuracy = 100 * 0.75 ^ mean_ptloss (since we lack complexity weights)
-    accuracy = 100.0 * (0.75**mean_ptloss)
 
     # --- Best move rate (= KaTrain's ai_top_move) ---
     best_count = sum(1 for c in analyzed if c.is_best_move)
@@ -90,10 +130,44 @@ def compute_game_stats(human_comments: list[ParsedComment]) -> dict:
     top5_count = sum(1 for r in policy_ranks if r <= 5)
     top5_policy_rate = (top5_count / len(policy_ranks)) if policy_ranks else None
 
+    # --- Std-dev of points lost (consistency within a game) ---
+    stddev_points_lost = _stddev(pts_lost_values)
+
+    # --- Phase breakdown ---
+    bounds = phase_boundaries(board_size)
+
+    def _phase_ptloss(phase_name: str) -> float | None:
+        start, end = bounds[phase_name]
+        phase_pts = [
+            max(0.0, c.points_lost) for c in analyzed if start <= c.move_number < end
+        ]
+        if len(phase_pts) < PHASE_MIN_MOVES:
+            return None
+        return round(sum(phase_pts) / len(phase_pts), 2)
+
+    phase_opening_pts_lost = _phase_ptloss("opening")
+    phase_midgame_pts_lost = _phase_ptloss("midgame")
+    phase_endgame_pts_lost = _phase_ptloss("endgame")
+
+    # --- Opening policy rank ---
+    op_start, op_end = bounds["opening"]
+    opening_policy_ranks = [
+        c.policy_rank
+        for c in analyzed
+        if op_start <= c.move_number < op_end and c.policy_rank is not None
+    ]
+    opening_avg_policy_rank = (
+        round(sum(opening_policy_ranks) / len(opening_policy_ranks), 1)
+        if opening_policy_ranks
+        else None
+    )
+
     return {
         "mean_points_lost": round(mean_ptloss, 2),
         "max_points_lost": round(max_ptloss, 1),
-        "accuracy": round(accuracy, 1),
+        "stddev_points_lost": round(stddev_points_lost, 2)
+        if stddev_points_lost is not None
+        else None,
         "best_move_rate": round(best_move_rate, 3),
         "good_move_rate": round(good_move_rate, 3),
         "histogram": histogram,
@@ -106,6 +180,10 @@ def compute_game_stats(human_comments: list[ParsedComment]) -> dict:
         "top5_policy_rate": round(top5_policy_rate, 3)
         if top5_policy_rate is not None
         else None,
+        "phase_opening_pts_lost": phase_opening_pts_lost,
+        "phase_midgame_pts_lost": phase_midgame_pts_lost,
+        "phase_endgame_pts_lost": phase_endgame_pts_lost,
+        "opening_avg_policy_rank": opening_avg_policy_rank,
     }
 
 
@@ -113,11 +191,15 @@ def _empty_stats() -> dict:
     return {
         "mean_points_lost": 0.0,
         "max_points_lost": 0.0,
-        "accuracy": 100.0,
+        "stddev_points_lost": None,
         "best_move_rate": 0.0,
         "good_move_rate": 0.0,
         "histogram": [0] * len(EVAL_THRESHOLDS),
         "avg_policy_rank": None,
         "top1_policy_rate": None,
         "top5_policy_rate": None,
+        "phase_opening_pts_lost": None,
+        "phase_midgame_pts_lost": None,
+        "phase_endgame_pts_lost": None,
+        "opening_avg_policy_rank": None,
     }

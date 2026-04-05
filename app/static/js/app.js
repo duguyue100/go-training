@@ -1,5 +1,5 @@
 // Go Training Dashboard - Vue.js 3 Application
-const { createApp, ref, computed, onMounted, watch, nextTick } = Vue;
+const { createApp, ref, computed, onMounted, onUnmounted, watch, nextTick } = Vue;
 
 // ---- Go Board Renderer ----
 const BoardImages = (() => {
@@ -283,7 +283,6 @@ const app = createApp({
             ai_name:         g => g.ai_name,
             total_moves:     g => g.total_moves,
             mean_points_lost:g => g.mean_points_lost,
-            accuracy:        g => g.accuracy,
             best_move_rate:  g => g.best_move_rate,
             undo_count:      g => g.undo_count,
         };
@@ -328,7 +327,6 @@ const app = createApp({
 
         // --- Helpers ---
         const formatNum = (val) => val != null ? Number(val).toFixed(2) : '—';
-        const formatPct = (val) => val != null ? Number(val).toFixed(1) + '%' : '—';
         const formatPct100 = (val) => val != null ? (Number(val) * 100).toFixed(1) + '%' : '—';
         const formatDate = (dateStr) => {
             const d = new Date(dateStr);
@@ -392,31 +390,58 @@ const app = createApp({
             progressChart = destroyChart(progressChart);
 
             const trends = stats.value.trends;
+            // Build ±1σ bands: upper = mean + stddev, lower = mean - stddev (clamped to 0)
+            const upperBand = trends.mean_points_lost.map((m, i) => {
+                const s = trends.stddev_points_lost[i];
+                return s != null ? m + s : null;
+            });
+            const lowerBand = trends.mean_points_lost.map((m, i) => {
+                const s = trends.stddev_points_lost[i];
+                return s != null ? Math.max(0, m - s) : null;
+            });
+
             progressChart = new Chart(canvas, {
                 type: 'line',
                 data: {
                     labels: trends.dates,
                     datasets: [
                         {
-                            label: t('avgPointsLost'),
-                            data: trends.mean_points_lost,
-                            borderColor: '#2563eb',
-                            backgroundColor: 'rgba(37, 99, 235, 0.08)',
-                            fill: true,
+                            // Upper bound — drawn first so fill '-1' targets the mean line
+                            label: t('ptLossUpper'),
+                            data: upperBand,
+                            borderColor: 'rgba(37, 99, 235, 0.25)',
+                            backgroundColor: 'rgba(37, 99, 235, 0.10)',
+                            borderWidth: 1,
+                            borderDash: [3, 3],
+                            pointRadius: 0,
+                            fill: '+1',
                             tension: 0.3,
-                            pointRadius: 4,
                             yAxisID: 'y-loss',
                         },
                         {
-                            label: t('accuracy') + ' ' + t('approxLabel'),
-                            data: trends.accuracy,
-                            borderColor: '#16a34a',
-                            backgroundColor: 'rgba(22, 163, 74, 0.08)',
-                            fill: true,
+                            label: t('avgPointsLost'),
+                            data: trends.mean_points_lost,
+                            borderColor: '#2563eb',
+                            backgroundColor: 'transparent',
+                            fill: false,
                             tension: 0.3,
                             pointRadius: 4,
-                            yAxisID: 'y-accuracy',
-                        }
+                            borderWidth: 2,
+                            yAxisID: 'y-loss',
+                        },
+                        {
+                            // Lower bound
+                            label: t('ptLossLower'),
+                            data: lowerBand,
+                            borderColor: 'rgba(37, 99, 235, 0.25)',
+                            backgroundColor: 'rgba(37, 99, 235, 0.10)',
+                            borderWidth: 1,
+                            borderDash: [3, 3],
+                            pointRadius: 0,
+                            fill: false,
+                            tension: 0.3,
+                            yAxisID: 'y-loss',
+                        },
                     ]
                 },
                 options: {
@@ -424,13 +449,24 @@ const app = createApp({
                     maintainAspectRatio: false,
                     interaction: { mode: 'index', intersect: false },
                     plugins: {
-                        legend: { position: 'top' },
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                // Only show the mean line in the legend
+                                filter: (item) => item.text === t('avgPointsLost'),
+                            }
+                        },
                         tooltip: {
                             callbacks: {
                                 label: (ctx) => {
-                                    const label = ctx.dataset.label || '';
-                                    const value = Number(ctx.parsed.y).toFixed(2);
-                                    return `${label}: ${value}`;
+                                    if (ctx.dataset.label === t('avgPointsLost')) {
+                                        const i = ctx.dataIndex;
+                                        const mean = trends.mean_points_lost[i];
+                                        const sd = trends.stddev_points_lost[i];
+                                        const sdStr = sd != null ? ` ±${sd.toFixed(2)}` : '';
+                                        return `${ctx.dataset.label}: ${mean.toFixed(2)}${sdStr}`;
+                                    }
+                                    return null; // hide upper/lower band from tooltip
                                 }
                             }
                         }
@@ -441,15 +477,8 @@ const app = createApp({
                             position: 'left',
                             title: { display: true, text: t('avgPointsLost') },
                             reverse: true,
-                        },
-                        'y-accuracy': {
-                            type: 'linear',
-                            position: 'right',
-                            title: { display: true, text: t('accuracy') + ' %' },
                             min: 0,
-                            max: 100,
-                            grid: { drawOnChartArea: false },
-                        }
+                        },
                     }
                 }
             });
@@ -940,6 +969,21 @@ const app = createApp({
             renderAllCharts();
         });
 
+        // --- Phase breakdown helpers ---
+        // Returns CSS class for a phase pts-lost value using same thresholds as ptlossClass
+        function phaseClass(val) {
+            if (val == null) return 'na';
+            if (val < 2) return 'good';
+            if (val < 4) return 'ok';
+            return 'bad';
+        }
+
+        // Returns bar width % for a phase value, scaled against a max of 6 pts
+        function phaseBarWidth(val) {
+            if (val == null) return 0;
+            return Math.min(100, (val / 6) * 100);
+        }
+
         return {
             locale, games, gamesReversed, gamesSorted, stats, loading,
             expandedGame, gameDetail, detailLoading, wsConnected,
@@ -947,10 +991,78 @@ const app = createApp({
             boardMove, setBoardMove,
             showScore, showWinrate, toggleDetailSeries,
             sortKey, sortAsc, setSort, sortIcon,
+            phaseClass, phaseBarWidth,
             t, toggleLang, toggleExpand,
-            formatNum, formatPct, formatPct100, formatDate, ptlossClass, formatRuleset,
+            formatNum, formatPct100, formatDate, ptlossClass, formatRuleset,
         };
     }
+});
+
+// ---- InfoTip component ----
+// Shared state: only one tooltip open at a time across all instances
+const openTipId = ref(null);
+
+// Dismiss on outside tap/click
+document.addEventListener('pointerdown', (e) => {
+    if (!e.target.closest('.info-tip')) {
+        openTipId.value = null;
+    }
+});
+
+app.component('info-tip', {
+    props: { tipKey: String, locale: String },
+    setup(props) {
+        // unique id per instance so we can track which one is open
+        const id = Math.random().toString(36).slice(2);
+
+        const text = computed(() => {
+            const lang = props.locale || 'zh';
+            return (messages[lang]?.tooltips?.[props.tipKey]) || '';
+        });
+
+        const isOpen = computed(() => openTipId.value === id);
+
+        // Hover (desktop)
+        function onMouseEnter() { openTipId.value = id; }
+        function onMouseLeave(e) {
+            // Only close on mouse leave if not pinned by a click
+            // We track pin state separately
+            if (!pinned.value) openTipId.value = null;
+        }
+
+        const pinned = ref(false);
+
+        function onPointerDown(e) {
+            e.stopPropagation(); // prevent document handler from firing
+            if (pinned.value) {
+                pinned.value = false;
+                openTipId.value = null;
+            } else {
+                pinned.value = true;
+                openTipId.value = id;
+            }
+        }
+
+        // When another tip opens, unpin this one
+        watch(openTipId, (newId) => {
+            if (newId !== id) pinned.value = false;
+        });
+
+        onUnmounted(() => {
+            if (openTipId.value === id) openTipId.value = null;
+        });
+
+        return { text, isOpen, pinned, onMouseEnter, onMouseLeave, onPointerDown };
+    },
+    template: `
+        <span class="info-tip"
+              @mouseenter="onMouseEnter"
+              @mouseleave="onMouseLeave"
+              @pointerdown="onPointerDown">
+            <span class="info-tip-icon" :class="{ pinned }">ⓘ</span>
+            <span v-if="isOpen" class="info-tip-bubble" role="tooltip">{{ text }}</span>
+        </span>
+    `,
 });
 
 app.mount('#app');

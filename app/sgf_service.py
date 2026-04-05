@@ -145,12 +145,13 @@ def parse_sgf_file(filepath: Path) -> GameDetail:
 
     # --- Step 5: Compute statistics ---
     human_comments = [c for c in main_line_comments if c.player == human_player]
-    stats = compute_game_stats(human_comments)
 
     # Flip trajectories to human's perspective when human played White
     if human_player == "W":
         score_trajectory = [-s for s in score_trajectory]
         winrate_trajectory = [100.0 - w for w in winrate_trajectory]
+
+    stats = compute_game_stats(human_comments, tuple(board_size))
 
     # --- Step 6: Build result ---
     summary = GameSummary(
@@ -168,7 +169,7 @@ def parse_sgf_file(filepath: Path) -> GameDetail:
         sgf_language=sgf_language,
         mean_points_lost=stats["mean_points_lost"],
         max_points_lost=stats["max_points_lost"],
-        accuracy=stats["accuracy"],
+        stddev_points_lost=stats["stddev_points_lost"],
         best_move_rate=stats["best_move_rate"],
         good_move_rate=stats["good_move_rate"],
         histogram=stats["histogram"],
@@ -177,6 +178,10 @@ def parse_sgf_file(filepath: Path) -> GameDetail:
         avg_policy_rank=stats["avg_policy_rank"],
         top1_policy_rate=stats["top1_policy_rate"],
         top5_policy_rate=stats["top5_policy_rate"],
+        phase_opening_pts_lost=stats["phase_opening_pts_lost"],
+        phase_midgame_pts_lost=stats["phase_midgame_pts_lost"],
+        phase_endgame_pts_lost=stats["phase_endgame_pts_lost"],
+        opening_avg_policy_rank=stats["opening_avg_policy_rank"],
     )
 
     return GameDetail(
