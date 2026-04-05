@@ -12,24 +12,23 @@ A personal training progress dashboard for [KaTrain](https://github.com/sanderla
 |:---:|:---:|
 | ![Overview](https://github.com/user-attachments/assets/68c7398c-5bec-4b50-af28-0ba086695f18) | ![Game history](https://github.com/user-attachments/assets/32a2c925-d8cc-48c6-884c-ccb3bcd71303) |
 
+## ✨ Features
 
-## Features
+- 📊 Per-game statistics: average points lost, std-dev consistency band, best move rate, policy rank
+- 📈 Progress charts over time with ±1σ error bands
+- 🎯 Move quality histogram (KaTrain's 6-bucket evaluation scale)
+- 🔍 Per-game drill-down: interactive Go board, score/winrate trajectory, phase breakdown (opening / midgame / endgame), undo details
+- ⚡ Live updates via WebSocket — drop a new SGF into `training/` and the dashboard refreshes automatically
+- 🌐 Bilingual UI (Chinese / English toggle)
+- 💡 Info tooltips on every key metric
 
-- Per-game statistics: average points lost, std-dev consistency band, best move rate, policy rank
-- Progress charts over time with ±1σ error bands
-- Move quality histogram (KaTrain's 6-bucket evaluation scale)
-- Per-game drill-down: interactive Go board, score/winrate trajectory, phase breakdown (opening / midgame / endgame), undo details
-- Live updates via WebSocket — drop a new SGF into `training/` and the dashboard refreshes automatically
-- Bilingual UI (Chinese / English toggle)
-- Info tooltips on every key metric
-
-## Requirements
+## 🧰 Requirements
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Mac, Windows, or Linux)
 
 That's it. No Python environment or Node.js needed on the host.
 
-## Setup
+## 🚀 Setup
 
 ### 1. Clone the repository
 
@@ -58,7 +57,7 @@ The first build takes about 30–60 seconds while Docker downloads the Python ba
 
 Open [http://localhost:4096](http://localhost:4096) in your browser.
 
-## Everyday use
+## 🎮 Everyday use
 
 Once set up, starting and stopping is just:
 
@@ -72,7 +71,7 @@ docker compose down
 
 To add a new game, save it from KaTrain as usual — the app detects new SGF files in `training/` and updates the dashboard within a few seconds without needing a restart.
 
-## Project structure
+## 🗂 Project structure
 
 ```
 go-training/
@@ -99,7 +98,7 @@ go-training/
         └── img/            # Board images from KaTrain (MIT licensed, bundled)
 ```
 
-## Resource usage
+## ⚙️ Resource usage
 
 The container runs with explicit limits set in `docker-compose.yml`:
 
@@ -108,7 +107,7 @@ The container runs with explicit limits set in `docker-compose.yml`:
 | Memory | 128 MB | ~40 MB |
 | CPU | 0.5 cores | < 1% at idle |
 
-## API
+## 🔌 API
 
 The backend exposes three JSON endpoints if you want to build your own tooling:
 
@@ -119,17 +118,17 @@ The backend exposes three JSON endpoints if you want to build your own tooling:
 | `GET /api/game/{filename}` | Full detail for one game (trajectories, board moves, undos) |
 | `WS /ws` | WebSocket — pushes `{"type":"update"}` when SGF files change |
 
-## Notes
+## 📝 Notes
 
 - Only KaTrain SGF files with embedded KataGo analysis comments are supported. Plain SGF files without analysis will be parsed but show no statistics.
 - The dashboard is designed for opening-phase training (games stopped at move 50). Phase breakdown and policy rank metrics are most meaningful in this context.
 - SGF files are gitignored — they are personal data.
 
-## Contributing
+## 🤝 Contributing
 
 This project is fully vibe-coded and maintained as a personal tool. Pull requests are not accepted. If you'd like to extend or adapt it, please fork the repository and develop your own version — that's encouraged.
 
-## License
+## 📄 License
 
 MIT © 2026 Yuhuang Hu
 
