@@ -176,6 +176,7 @@ def parse_sgf_file(filepath: Path) -> GameDetail:
         undo_total_points_lost=sum(u.points_lost for u in undo_events),
         avg_policy_rank=stats["avg_policy_rank"],
         top1_policy_rate=stats["top1_policy_rate"],
+        top5_policy_rate=stats["top5_policy_rate"],
     )
 
     return GameDetail(

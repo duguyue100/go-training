@@ -73,7 +73,13 @@ async def get_stats():
             "dates": dates,
             "mean_points_lost": [s.mean_points_lost for s in summaries],
             "accuracy": [s.accuracy for s in summaries],
-            "best_move_rate": [s.best_move_rate for s in summaries],
+            "best_move_rate": [round(s.best_move_rate * 100, 1) for s in summaries],
+            "top5_policy_rate": [
+                round(s.top5_policy_rate * 100, 1)
+                if s.top5_policy_rate is not None
+                else None
+                for s in summaries
+            ],
             "undo_count": [s.undo_count for s in summaries],
             "avg_policy_rank": [s.avg_policy_rank for s in summaries],
         },

@@ -56,8 +56,11 @@
             <!-- Charts Row 1: Progress Over Time -->
             <section class="chart-section">
                 <h2>{{ t('progressOverTime') }}</h2>
-                <div class="chart-container" style="height: 280px;">
+                <div class="chart-container" style="height: 280px; margin-bottom: 0.75rem;">
                     <canvas id="progressChart"></canvas>
+                </div>
+                <div class="chart-container" style="height: 220px;">
+                    <canvas id="matchChart"></canvas>
                 </div>
             </section>
 
@@ -84,19 +87,19 @@
                     <table class="game-table">
                         <thead>
                             <tr>
-                                <th>{{ t('date') }}</th>
-                                <th>{{ t('color') }}</th>
-                                <th>{{ t('mode') }}</th>
-                                <th>{{ t('opponent') }}</th>
-                                <th>{{ t('moves') }}</th>
-                                <th>{{ t('avgPointsLost') }}</th>
-                                <th>{{ t('accuracy') }}</th>
-                                <th>{{ t('bestMoveRate') }}</th>
-                                <th>{{ t('undoCount') }}</th>
+                                <th class="sortable" @click="setSort('date')">{{ t('date') }} <span class="sort-icon">{{ sortIcon('date') }}</span></th>
+                                <th class="sortable" @click="setSort('human_player')">{{ t('color') }} <span class="sort-icon">{{ sortIcon('human_player') }}</span></th>
+                                <th class="sortable" @click="setSort('game_mode')">{{ t('mode') }} <span class="sort-icon">{{ sortIcon('game_mode') }}</span></th>
+                                <th class="sortable" @click="setSort('ai_name')">{{ t('opponent') }} <span class="sort-icon">{{ sortIcon('ai_name') }}</span></th>
+                                <th class="sortable" @click="setSort('total_moves')">{{ t('moves') }} <span class="sort-icon">{{ sortIcon('total_moves') }}</span></th>
+                                <th class="sortable" @click="setSort('mean_points_lost')">{{ t('avgPointsLost') }} <span class="sort-icon">{{ sortIcon('mean_points_lost') }}</span></th>
+                                <th class="sortable" @click="setSort('accuracy')">{{ t('accuracy') }} <span class="sort-icon">{{ sortIcon('accuracy') }}</span></th>
+                                <th class="sortable" @click="setSort('best_move_rate')">{{ t('bestMoveRate') }} <span class="sort-icon">{{ sortIcon('best_move_rate') }}</span></th>
+                                <th class="sortable" @click="setSort('undo_count')">{{ t('undoCount') }} <span class="sort-icon">{{ sortIcon('undo_count') }}</span></th>
                             </tr>
                         </thead>
                         <tbody>
-                            <template v-for="game in gamesReversed" :key="game.filename">
+                            <template v-for="game in gamesSorted" :key="game.filename">
                                 <tr @click="toggleExpand(game.filename)"
                                     class="game-row"
                                     :class="{ expanded: expandedGame === game.filename }">

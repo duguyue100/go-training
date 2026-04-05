@@ -106,7 +106,7 @@ function hasLiberty(board, group) {
  */
 function drawBoard(canvas, moveCoords, upToMove) {
     const SIZE = 19;
-    const PADDING = 32;      // pixels for coordinate labels
+    const PADDING = 40;      // pixels for coordinate labels (increased to keep labels clear of edge stones)
     const W = canvas.width;
     const H = canvas.height;
     const boardW = W - 2 * PADDING;
@@ -178,7 +178,11 @@ function drawBoard(canvas, moveCoords, upToMove) {
 
     // --- Stones ---
     const { board, lastCol, lastRow } = buildBoardState(moveCoords, upToMove);
-    const stoneR = cell * 0.505 / 2;  // KaTrain's STONE_SIZE = 0.505
+    // PNG stone fills ~94% of image width (measured); stoneR is the desired visual radius.
+    // drawR = stoneR / (FILL/2) so that stone pixel radius == stoneR exactly.
+    // stoneR = cell*0.477 => stone diameter ~95.5% of cell (≈1px gap between adjacent stones).
+    const STONE_FILL = 0.94;
+    const stoneR = cell * 0.477;
 
     for (const [key, color] of board) {
         const [c, r] = key.split(',').map(Number);
@@ -186,9 +190,7 @@ function drawBoard(canvas, moveCoords, upToMove) {
         const y = PADDING + (SIZE - 1 - r) * cell;
         const img = color === 'B' ? BoardImages.black : BoardImages.white;
         if (img) {
-            // Image has ~200px transparent border; the stone fills center ~66%
-            // We draw the full image oversized so the actual stone hits stoneR
-            const drawR = stoneR / 0.66 * 2;
+            const drawR = stoneR / (STONE_FILL / 2);
             ctx.drawImage(img, x - drawR/2, y - drawR/2, drawR, drawR);
         } else {
             // Fallback solid circle
@@ -207,7 +209,7 @@ function drawBoard(canvas, moveCoords, upToMove) {
         const x = PADDING + lastCol * cell;
         const y = PADDING + (SIZE - 1 - lastRow) * cell;
         if (BoardImages.inner) {
-            const drawR = stoneR / 0.66 * 2;
+            const drawR = stoneR / (STONE_FILL / 2);
             ctx.drawImage(BoardImages.inner, x - drawR/2, y - drawR/2, drawR, drawR);
         } else {
             const lastColor = board.get(`${lastCol},${lastRow}`);
@@ -222,6 +224,21 @@ function drawBoard(canvas, moveCoords, upToMove) {
 
 // KaTrain evaluation colors (index 0=excellent, 5=critical)
 const EVAL_COLORS = ['#1E9600', '#ABE618', '#F2F200', '#E6661A', '#CC0000', '#72216B'];
+
+/**
+ * Compute a centred rolling average of `arr` using a window of `w` points.
+ * For positions near the edges the window shrinks rather than producing nulls,
+ * so the line always spans the full data range.
+ */
+function rollingAvg(arr, w) {
+    const half = Math.floor(w / 2);
+    return arr.map((_, i) => {
+        const lo = Math.max(0, i - half);
+        const hi = Math.min(arr.length - 1, i + half);
+        const slice = arr.slice(lo, hi + 1).filter(v => v != null);
+        return slice.length ? slice.reduce((a, b) => a + b, 0) / slice.length : null;
+    });
+}
 
 const app = createApp({
     setup() {
@@ -239,7 +256,8 @@ const app = createApp({
         let progressChart = null;
         let qualityChart = null;
         let undoChart = null;
-        let detailChart = null;   // combined score + winrate chart
+        let matchChart = null;        // best-move match % + top-5 policy match %
+        let detailChart = null;       // combined score + winrate chart
 
         // --- Board slider state ---
         const boardMove = ref(0);   // current slider position (0 = empty, N = after move N)
@@ -254,7 +272,50 @@ const app = createApp({
             t('excellent'), t('good'), t('inaccuracy'), t('mistake'), t('blunder'), t('critical')
         ]);
 
-        // Reversed games for table (newest first)
+        // --- Table sorting ---
+        const sortKey = ref('date');
+        const sortAsc = ref(false);  // default: newest first
+
+        const SORT_ACCESSORS = {
+            date:            g => new Date(g.date).getTime(),
+            human_player:    g => g.human_player,
+            game_mode:       g => g.game_mode,
+            ai_name:         g => g.ai_name,
+            total_moves:     g => g.total_moves,
+            mean_points_lost:g => g.mean_points_lost,
+            accuracy:        g => g.accuracy,
+            best_move_rate:  g => g.best_move_rate,
+            undo_count:      g => g.undo_count,
+        };
+
+        const gamesSorted = computed(() => {
+            const arr = [...games.value];
+            const fn = SORT_ACCESSORS[sortKey.value] ?? (g => g.date);
+            arr.sort((a, b) => {
+                const va = fn(a), vb = fn(b);
+                if (va < vb) return sortAsc.value ? -1 : 1;
+                if (va > vb) return sortAsc.value ?  1 : -1;
+                return 0;
+            });
+            return arr;
+        });
+
+        function setSort(key) {
+            if (sortKey.value === key) {
+                sortAsc.value = !sortAsc.value;
+            } else {
+                sortKey.value = key;
+                // For quality metrics lower=better, default ascending; otherwise descending
+                sortAsc.value = ['mean_points_lost', 'undo_count'].includes(key);
+            }
+        }
+
+        function sortIcon(key) {
+            if (sortKey.value !== key) return '⇅';
+            return sortAsc.value ? '↑' : '↓';
+        }
+
+        // Reversed games for table (newest first) — kept for backwards compat but replaced by gamesSorted
         const gamesReversed = computed(() => [...games.value].reverse());
 
         // --- i18n ---
@@ -402,40 +463,107 @@ const app = createApp({
             qualityChart = destroyChart(qualityChart);
 
             const dates = games.value.map(g => formatDate(g.date));
-            const bucketLabels = [
-                t('excellent'), t('good'), t('inaccuracy'), t('mistake'), t('blunder'), t('critical')
-            ];
+            const WINDOW = 5;
 
-            // Build percentage datasets for each bucket
-            const datasets = bucketLabels.map((label, i) => ({
-                label,
-                data: games.value.map(g => {
-                    const total = g.histogram.reduce((a, b) => a + b, 0);
-                    return total > 0 ? Number((g.histogram[i] / total * 100).toFixed(1)) : 0;
-                }),
-                backgroundColor: EVAL_COLORS[i],
-            }));
+            // % excellent + good (buckets 0+1) — higher is better
+            const goodPct = games.value.map(g => {
+                const total = g.histogram.reduce((a, b) => a + b, 0);
+                return total > 0 ? Number(((g.histogram[0] + g.histogram[1]) / total * 100).toFixed(1)) : null;
+            });
+
+            // % mistake + blunder + critical (buckets 3+4+5) — lower is better
+            const badPct = games.value.map(g => {
+                const total = g.histogram.reduce((a, b) => a + b, 0);
+                return total > 0 ? Number(((g.histogram[3] + g.histogram[4] + g.histogram[5]) / total * 100).toFixed(1)) : null;
+            });
 
             qualityChart = new Chart(canvas, {
-                type: 'bar',
-                data: { labels: dates, datasets },
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: [
+                        // Raw good% dots
+                        {
+                            label: t('goodMovesPct'),
+                            data: goodPct,
+                            borderColor: 'rgba(30,150,0,0.35)',
+                            backgroundColor: 'rgba(30,150,0,0.35)',
+                            pointRadius: 4,
+                            pointHoverRadius: 6,
+                            showLine: false,
+                            yAxisID: 'y',
+                        },
+                        // Rolling avg good%
+                        {
+                            label: t('goodMovesAvg'),
+                            data: rollingAvg(goodPct, WINDOW),
+                            borderColor: '#1E9600',
+                            backgroundColor: 'transparent',
+                            pointRadius: 0,
+                            borderWidth: 2.5,
+                            tension: 0.4,
+                            showLine: true,
+                            yAxisID: 'y',
+                        },
+                        // Raw bad% dots
+                        {
+                            label: t('badMovesPct'),
+                            data: badPct,
+                            borderColor: 'rgba(204,0,0,0.30)',
+                            backgroundColor: 'rgba(204,0,0,0.30)',
+                            pointRadius: 4,
+                            pointHoverRadius: 6,
+                            showLine: false,
+                            yAxisID: 'y',
+                        },
+                        // Rolling avg bad%
+                        {
+                            label: t('badMovesAvg'),
+                            data: rollingAvg(badPct, WINDOW),
+                            borderColor: '#CC0000',
+                            backgroundColor: 'transparent',
+                            pointRadius: 0,
+                            borderWidth: 2.5,
+                            tension: 0.4,
+                            borderDash: [5, 3],
+                            showLine: true,
+                            yAxisID: 'y',
+                        },
+                    ]
+                },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
                     plugins: {
-                        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 12,
+                                font: { size: 11 },
+                                // Hide the raw-dot series from legend — avg lines speak for them
+                                filter: (item) => !item.text.includes('·'),
+                            }
+                        },
                         tooltip: {
                             callbacks: {
-                                label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}%`
+                                label: (ctx) => {
+                                    const v = ctx.parsed.y;
+                                    if (v == null) return null;
+                                    return `${ctx.dataset.label}: ${Number(v).toFixed(1)}%`;
+                                }
                             }
                         }
                     },
                     scales: {
-                        x: { stacked: true },
+                        x: {
+                            ticks: { maxTicksLimit: 12, maxRotation: 35 }
+                        },
                         y: {
-                            stacked: true,
+                            min: 0,
                             max: 100,
-                            title: { display: true, text: '%' }
+                            title: { display: true, text: '%' },
+                            ticks: { callback: v => v + '%' }
                         }
                     }
                 }
@@ -450,27 +578,138 @@ const app = createApp({
             undoChart = destroyChart(undoChart);
 
             const trends = stats.value.trends;
+            const WINDOW = 3;
+
             undoChart = new Chart(canvas, {
-                type: 'bar',
+                type: 'line',
                 data: {
                     labels: trends.dates,
-                    datasets: [{
-                        label: t('undoCount'),
-                        data: trends.undo_count,
-                        backgroundColor: '#E6661A',
-                        borderRadius: 4,
-                    }]
+                    datasets: [
+                        // Raw per-game dots
+                        {
+                            label: t('undoCount'),
+                            data: trends.undo_count,
+                            borderColor: 'rgba(230,102,26,0.40)',
+                            backgroundColor: 'rgba(230,102,26,0.40)',
+                            pointRadius: 5,
+                            pointHoverRadius: 7,
+                            showLine: false,
+                        },
+                        // Rolling average line
+                        {
+                            label: t('undoAvg'),
+                            data: rollingAvg(trends.undo_count, WINDOW),
+                            borderColor: '#E6661A',
+                            backgroundColor: 'rgba(230,102,26,0.10)',
+                            pointRadius: 0,
+                            borderWidth: 2.5,
+                            tension: 0.4,
+                            fill: true,
+                            showLine: true,
+                        },
+                    ]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
                     plugins: {
-                        legend: { display: false },
+                        legend: {
+                            position: 'bottom',
+                            labels: { boxWidth: 12, font: { size: 11 } }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => {
+                                    const v = ctx.parsed.y;
+                                    if (v == null) return null;
+                                    const isAvg = ctx.datasetIndex === 1;
+                                    return `${ctx.dataset.label}: ${isAvg ? Number(v).toFixed(1) : v}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { maxTicksLimit: 12, maxRotation: 35 }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1,
+                                callback: v => Number.isInteger(v) ? v : null,
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderMatchChart() {
+            const canvas = safeCanvas('matchChart');
+            if (!canvas) return;
+            if (!stats.value.trends?.dates?.length) return;
+
+            matchChart = destroyChart(matchChart);
+
+            const trends = stats.value.trends;
+            matchChart = new Chart(canvas, {
+                type: 'line',
+                data: {
+                    labels: trends.dates,
+                    datasets: [
+                        {
+                            label: t('bestMoveMatch'),
+                            data: trends.best_move_rate,
+                            borderColor: '#16a34a',
+                            backgroundColor: 'rgba(22, 163, 74, 0.08)',
+                            fill: false,
+                            tension: 0.3,
+                            pointRadius: 5,
+                            pointHoverRadius: 7,
+                            borderWidth: 2,
+                        },
+                        {
+                            label: t('top5PolicyMatch'),
+                            data: trends.top5_policy_rate,
+                            borderColor: '#9333ea',
+                            backgroundColor: 'rgba(147, 51, 234, 0.08)',
+                            fill: false,
+                            tension: 0.3,
+                            pointRadius: 5,
+                            pointHoverRadius: 7,
+                            borderWidth: 2,
+                            borderDash: [5, 3],
+                        },
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } },
+                        title: {
+                            display: true,
+                            text: t('matchRates'),
+                            font: { size: 12, weight: '600' },
+                            color: '#6b7280',
+                            padding: { bottom: 4 },
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => `${ctx.dataset.label}: ${Number(ctx.parsed.y).toFixed(1)}%`
+                            }
+                        }
                     },
                     scales: {
                         y: {
-                            beginAtZero: true,
-                            ticks: { stepSize: 1 }
+                            min: 0,
+                            max: 100,
+                            title: { display: true, text: '%' },
+                            ticks: {
+                                callback: (v) => v + '%'
+                            }
                         }
                     }
                 }
@@ -655,6 +894,7 @@ const app = createApp({
         // Re-render all charts
         function renderAllCharts() {
             renderProgressChart();
+            renderMatchChart();
             renderQualityChart();
             renderUndoChart();
         }
@@ -701,11 +941,12 @@ const app = createApp({
         });
 
         return {
-            locale, games, gamesReversed, stats, loading,
+            locale, games, gamesReversed, gamesSorted, stats, loading,
             expandedGame, gameDetail, detailLoading, wsConnected,
             histColors, histLabels,
             boardMove, setBoardMove,
             showScore, showWinrate, toggleDetailSeries,
+            sortKey, sortAsc, setSort, sortIcon,
             t, toggleLang, toggleExpand,
             formatNum, formatPct, formatPct100, formatDate, ptlossClass, formatRuleset,
         };

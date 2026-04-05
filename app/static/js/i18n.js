@@ -16,8 +16,13 @@ const messages = {
 
         // Chart titles
         progressOverTime: "训练进度",
+        matchRates: "着手匹配率",
         moveQuality: "着手质量分布",
         undoTrend: "悔棋趋势",
+
+        // Match rate chart labels
+        bestMoveMatch: "最佳着手匹配率",
+        top5PolicyMatch: "Top-5 直觉匹配率",
 
         // Move quality buckets (index 0=excellent, 5=critical)
         excellent: "优秀",
@@ -69,6 +74,15 @@ const messages = {
         aga: "AGA规则",
         nz: "新西兰规则",
 
+        // Move quality chart series labels
+        goodMovesPct: "好棋% (每局)",
+        goodMovesAvg: "好棋% (滚动均值)",
+        badMovesPct: "坏棋% (每局)",
+        badMovesAvg: "坏棋% (滚动均值)",
+
+        // Undo chart series labels
+        undoAvg: "悔棋 (滚动均值)",
+
         // Move quality histogram legend
         moveQualityLegend: "着手质量",
         humanMoves: "你的着手",
@@ -86,8 +100,13 @@ const messages = {
         approxLabel: "(approx)",
 
         progressOverTime: "Progress Over Time",
+        matchRates: "Move Match Rates",
         moveQuality: "Move Quality Distribution",
         undoTrend: "Undo Trend",
+
+        // Match rate chart labels
+        bestMoveMatch: "AI Best Move Match %",
+        top5PolicyMatch: "Top-5 Policy Match %",
 
         excellent: "Excellent",
         good: "Good",
@@ -134,6 +153,15 @@ const messages = {
         korean: "Korean",
         aga: "AGA",
         nz: "New Zealand",
+
+        // Move quality chart series labels
+        goodMovesPct: "Good moves % (per game)",
+        goodMovesAvg: "Good moves % (rolling avg)",
+        badMovesPct: "Bad moves % (per game)",
+        badMovesAvg: "Bad moves % (rolling avg)",
+
+        // Undo chart series labels
+        undoAvg: "Undos (rolling avg)",
 
         // Move quality histogram legend
         moveQualityLegend: "Move Quality",

@@ -46,6 +46,7 @@ class GameSummary(BaseModel):
     # Policy stats
     avg_policy_rank: float | None = None
     top1_policy_rate: float | None = None
+    top5_policy_rate: float | None = None
 
 
 class MoveCoord(BaseModel):
@@ -73,6 +74,7 @@ class TrendData(BaseModel):
     mean_points_lost: list[float]
     accuracy: list[float]
     best_move_rate: list[float]
+    top5_policy_rate: list[float | None]
     undo_count: list[int]
     avg_policy_rank: list[float | None]
 

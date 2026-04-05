@@ -250,6 +250,31 @@ body {
 .ptloss-ok      { color: #ca8a04; }
 .ptloss-bad     { color: #dc2626; font-weight: 600; }
 
+/* ---- Sortable table headers ---- */
+.game-table th.sortable {
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.12s, color 0.12s;
+}
+
+.game-table th.sortable:hover {
+    background: #e8edf5;
+    color: var(--accent);
+}
+
+.sort-icon {
+    display: inline-block;
+    margin-left: 0.25rem;
+    font-size: 0.7rem;
+    opacity: 0.55;
+    vertical-align: middle;
+}
+
+.game-table th.sortable:hover .sort-icon {
+    opacity: 0.85;
+}
+
+
 /* ---- Detail row ---- */
 .detail-row td {
     background: #f8fafc;

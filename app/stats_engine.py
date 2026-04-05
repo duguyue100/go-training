@@ -87,6 +87,8 @@ def compute_game_stats(human_comments: list[ParsedComment]) -> dict:
     avg_policy_rank = (sum(policy_ranks) / len(policy_ranks)) if policy_ranks else None
     top1_count = sum(1 for r in policy_ranks if r == 1)
     top1_policy_rate = (top1_count / len(policy_ranks)) if policy_ranks else None
+    top5_count = sum(1 for r in policy_ranks if r <= 5)
+    top5_policy_rate = (top5_count / len(policy_ranks)) if policy_ranks else None
 
     return {
         "mean_points_lost": round(mean_ptloss, 2),
@@ -101,6 +103,9 @@ def compute_game_stats(human_comments: list[ParsedComment]) -> dict:
         "top1_policy_rate": round(top1_policy_rate, 3)
         if top1_policy_rate is not None
         else None,
+        "top5_policy_rate": round(top5_policy_rate, 3)
+        if top5_policy_rate is not None
+        else None,
     }
 
 
@@ -114,4 +119,5 @@ def _empty_stats() -> dict:
         "histogram": [0] * len(EVAL_THRESHOLDS),
         "avg_policy_rank": None,
         "top1_policy_rate": None,
+        "top5_policy_rate": None,
     }
