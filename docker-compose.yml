@@ -11,3 +11,11 @@ services:
       - WATCHFILES_FORCE_POLLING=true
       - WATCHFILES_POLL_DELAY_MS=2000
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 128m
+        reservations:
+          cpus: "0.05"
+          memory: 64m
