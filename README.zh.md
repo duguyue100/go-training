@@ -4,7 +4,9 @@
 
 一个基于 [KaTrain](https://github.com/sanderland/katrain) 对局文件的个人训练进度仪表盘。它读取 KaTrain 导出的 SGF 文件，解析嵌入其中的 KataGo 分析数据，并通过交互式 Web UI 展示你的布局阶段进步情况。
 
-![仪表盘截图占位](docs/screenshot.png)
+| 总览 | 对局历史 |
+|:---:|:---:|
+| ![总览](docs/screenshot-overview.png) | ![对局历史](docs/screenshot-history.png) |
 
 ## 功能特性
 

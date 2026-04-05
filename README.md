@@ -4,7 +4,9 @@ English | [中文](README.zh.md)
 
 A personal training progress dashboard for [KaTrain](https://github.com/sanderland/katrain) games. It reads SGF files exported by KaTrain, parses the embedded KataGo analysis, and displays your opening-phase progress through an interactive web UI.
 
-![Dashboard screenshot placeholder](docs/screenshot.png)
+| Overview | Game history |
+|:---:|:---:|
+| ![Overview](docs/screenshot-overview.png) | ![Game history](docs/screenshot-history.png) |
 
 ## Features
 
@@ -120,6 +122,6 @@ The backend exposes three JSON endpoints if you want to build your own tooling:
 
 ## License
 
-MIT © 2025 Yuhuang Hu
+MIT © 2026 Yuhuang Hu
 
 This project includes vendored code from [KaTrain](https://github.com/sanderland/katrain) (MIT License, © 2020 Sander Land) in `app/sgf_parser.py`.
