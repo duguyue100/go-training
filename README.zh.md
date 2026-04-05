@@ -1,6 +1,10 @@
+<div align="center">
+
 ![Banner](docs/gtd-banner.svg)
 
 [English](README.md) | 中文
+
+</div>
 
 一个基于 [KaTrain](https://github.com/sanderland/katrain) 对局文件的个人训练进度仪表盘。它读取 KaTrain 导出的 SGF 文件，解析嵌入其中的 KataGo 分析数据，并通过交互式 Web UI 展示你的布局阶段进步情况。
 

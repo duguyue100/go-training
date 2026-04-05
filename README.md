@@ -1,6 +1,10 @@
+<div align="center">
+
 ![Banner](docs/gtd-banner.svg)
 
 English | [中文](README.zh.md)
+
+</div>
 
 A personal training progress dashboard for [KaTrain](https://github.com/sanderland/katrain) games. It reads SGF files exported by KaTrain, parses the embedded KataGo analysis, and displays your opening-phase progress through an interactive web UI.
 
