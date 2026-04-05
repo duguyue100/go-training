@@ -6,7 +6,7 @@ A personal training progress dashboard for [KaTrain](https://github.com/sanderla
 
 | Overview | Game history |
 |:---:|:---:|
-| ![Overview]([docs/screenshot-overview.png](https://github.com/user-attachments/assets/68c7398c-5bec-4b50-af28-0ba086695f18)) | ![Game history]([docs/screenshot-history.png](https://github.com/user-attachments/assets/32a2c925-d8cc-48c6-884c-ccb3bcd71303)) |
+| ![Overview](https://github.com/user-attachments/assets/68c7398c-5bec-4b50-af28-0ba086695f18) | ![Game history](https://github.com/user-attachments/assets/32a2c925-d8cc-48c6-884c-ccb3bcd71303) |
 
 
 ## Features

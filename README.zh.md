@@ -6,7 +6,7 @@
 
 | 总览 | 对局历史 |
 |:---:|:---:|
-| ![总览](docs/screenshot-overview.png) | ![对局历史](docs/screenshot-history.png) |
+| ![总览](https://github.com/user-attachments/assets/68c7398c-5bec-4b50-af28-0ba086695f18) | ![对局历史](https://github.com/user-attachments/assets/32a2c925-d8cc-48c6-884c-ccb3bcd71303) |
 
 ## 功能特性
 
