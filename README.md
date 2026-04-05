@@ -121,6 +121,10 @@ The backend exposes three JSON endpoints if you want to build your own tooling:
 - The dashboard is designed for opening-phase training (games stopped at move 50). Phase breakdown and policy rank metrics are most meaningful in this context.
 - SGF files are gitignored — they are personal data.
 
+## Contributing
+
+This project is fully vibe-coded and maintained as a personal tool. Pull requests are not accepted. If you'd like to extend or adapt it, please fork the repository and develop your own version — that's encouraged.
+
 ## License
 
 MIT © 2026 Yuhuang Hu
