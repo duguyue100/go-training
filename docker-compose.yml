@@ -2,9 +2,12 @@ services:
   dashboard:
     build: .
     ports:
-      - "8000:8000"
+      - "4096:4096"
     volumes:
-      - ./training:/data/training:ro
+      - ./training:/data/training  # read-write so inotify events are delivered
     environment:
       - TRAINING_DIR=/data/training
+      # Force watchfiles to poll — inotify is unreliable on Docker Desktop bind mounts
+      - WATCHFILES_FORCE_POLLING=true
+      - WATCHFILES_POLL_DELAY_MS=2000
     restart: unless-stopped
