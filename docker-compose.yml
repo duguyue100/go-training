@@ -1,0 +1,10 @@
+services:
+  dashboard:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./training:/data/training:ro
+    environment:
+      - TRAINING_DIR=/data/training
+    restart: unless-stopped

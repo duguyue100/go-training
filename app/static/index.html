@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Go Training Dashboard</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header class="header">
+            <h1>{{ t('title') }}</h1>
+            <div class="header-right">
+                <span class="ws-status" :class="wsConnected ? 'connected' : 'disconnected'"
+                      :title="wsConnected ? t('liveConnected') : t('liveDisconnected')">●</span>
+                <button class="lang-toggle" @click="toggleLang">
+                    {{ locale === 'zh' ? 'EN' : '中文' }}
+                </button>
+            </div>
+        </header>
+
+        <!-- Loading state -->
+        <div v-if="loading" class="loading">
+            <div class="spinner"></div>
+            <p>{{ t('loading') }}</p>
+        </div>
+
+        <!-- No games state -->
+        <div v-else-if="!loading && games.length === 0" class="empty-state">
+            <p>{{ t('noGames') }}</p>
+        </div>
+
+        <!-- Main content -->
+        <main v-else>
+            <!-- Summary Cards -->
+            <section class="summary-cards">
+                <div class="card">
+                    <div class="card-label">{{ t('totalGames') }}</div>
+                    <div class="card-value">{{ stats.total_games || 0 }}</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">{{ t('avgPointsLost') }}</div>
+                    <div class="card-value">{{ formatNum(stats.overall?.avg_mean_points_lost) }}</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">{{ t('accuracy') }} {{ t('approxLabel') }}</div>
+                    <div class="card-value">{{ formatPct(stats.overall?.avg_accuracy) }}</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">{{ t('bestMoveRate') }}</div>
+                    <div class="card-value">{{ formatPct100(stats.overall?.avg_best_move_rate) }}</div>
+                </div>
+            </section>
+
+            <!-- Charts Row 1: Progress Over Time -->
+            <section class="chart-section">
+                <h2>{{ t('progressOverTime') }}</h2>
+                <div class="chart-container" style="height: 280px;">
+                    <canvas id="progressChart"></canvas>
+                </div>
+            </section>
+
+            <!-- Charts Row 2: Move Quality + Undo Trend -->
+            <section class="chart-row">
+                <div class="chart-half">
+                    <h2>{{ t('moveQuality') }}</h2>
+                    <div class="chart-container" style="height: 260px;">
+                        <canvas id="qualityChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-half">
+                    <h2>{{ t('undoTrend') }}</h2>
+                    <div class="chart-container" style="height: 260px;">
+                        <canvas id="undoChart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Game History Table -->
+            <section class="table-section">
+                <h2>{{ t('gameHistory') }}</h2>
+                <div class="table-wrapper">
+                    <table class="game-table">
+                        <thead>
+                            <tr>
+                                <th>{{ t('date') }}</th>
+                                <th>{{ t('color') }}</th>
+                                <th>{{ t('mode') }}</th>
+                                <th>{{ t('opponent') }}</th>
+                                <th>{{ t('moves') }}</th>
+                                <th>{{ t('avgPointsLost') }}</th>
+                                <th>{{ t('accuracy') }}</th>
+                                <th>{{ t('bestMoveRate') }}</th>
+                                <th>{{ t('undoCount') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template v-for="game in gamesReversed" :key="game.filename">
+                                <tr @click="toggleExpand(game.filename)"
+                                    class="game-row"
+                                    :class="{ expanded: expandedGame === game.filename }">
+                                    <td>{{ formatDate(game.date) }}</td>
+                                    <td><span class="stone-badge" :class="game.human_player === 'B' ? 'stone-black' : 'stone-white'">{{ game.human_player === 'B' ? t('black') : t('white') }}</span></td>
+                                    <td><span class="mode-badge" :class="'mode-' + game.game_mode">{{ t(game.game_mode) }}</span></td>
+                                    <td>{{ game.ai_name }}{{ game.ai_rank ? ' (' + game.ai_rank + ')' : '' }}</td>
+                                    <td>{{ game.total_moves }}</td>
+                                    <td :class="ptlossClass(game.mean_points_lost)">{{ game.mean_points_lost }}</td>
+                                    <td>{{ game.accuracy }}%</td>
+                                    <td>{{ formatPct100(game.best_move_rate) }}</td>
+                                    <td>{{ game.undo_count }}</td>
+                                </tr>
+                                <!-- Expanded detail row -->
+                                <tr v-if="expandedGame === game.filename" class="detail-row">
+                                    <td colspan="9">
+                                        <div v-if="detailLoading" class="detail-loading">
+                                            <div class="spinner small"></div>
+                                        </div>
+                                         <div v-else-if="gameDetail">
+                                            <!-- Board + Side panel -->
+                                            <div class="detail-board-row">
+                                                <div class="board-panel">
+                                                    <canvas id="boardCanvas" class="go-board-canvas" width="480" height="480"></canvas>
+                                                    <div class="board-controls">
+                                                        <button class="board-btn" @click="setBoardMove(0)" title="Start">⏮</button>
+                                                        <button class="board-btn" @click="setBoardMove(boardMove - 1)" title="Back">◀</button>
+                                                        <input type="range" class="board-slider"
+                                                               :min="0"
+                                                               :max="gameDetail.move_coords.length"
+                                                               :value="boardMove"
+                                                               @input="setBoardMove(+$event.target.value)" />
+                                                        <button class="board-btn" @click="setBoardMove(boardMove + 1)" title="Forward">▶</button>
+                                                        <button class="board-btn" @click="setBoardMove(gameDetail.move_coords.length)" title="End">⏭</button>
+                                                        <span class="board-move-label">{{ boardMove }} / {{ gameDetail.move_coords.length }}</span>
+                                                    </div>
+                                                </div>
+
+                                                <div class="board-side-charts">
+                                                    <!-- Game settings -->
+                                                    <div class="game-settings">
+                                                        <span class="setting-item">
+                                                            <span class="setting-label">{{ t('ruleset') }}</span>
+                                                            <span class="setting-value">{{ formatRuleset(gameDetail.summary.ruleset) }}</span>
+                                                        </span>
+                                                        <span class="setting-item">
+                                                            <span class="setting-label">{{ t('komi') }}</span>
+                                                            <span class="setting-value">{{ gameDetail.summary.komi }}</span>
+                                                        </span>
+                                                        <span class="setting-item">
+                                                            <span class="setting-label">{{ t('boardSize') }}</span>
+                                                            <span class="setting-value">{{ gameDetail.summary.board_size[0] }}×{{ gameDetail.summary.board_size[1] }}</span>
+                                                        </span>
+                                                    </div>
+
+                                                    <!-- Combined score + winrate chart -->
+                                                    <div class="detail-chart-block">
+                                                        <div class="detail-chart-header">
+                                                            <button class="series-toggle" :class="{ active: showScore, 'color-score': true }"
+                                                                    @click="toggleDetailSeries('score')">
+                                                                <span class="series-swatch score-swatch"></span>{{ t('showScore') }}
+                                                            </button>
+                                                            <button class="series-toggle" :class="{ active: showWinrate, 'color-wr': true }"
+                                                                    @click="toggleDetailSeries('winrate')">
+                                                                <span class="series-swatch wr-swatch"></span>{{ t('showWinrate') }}
+                                                            </button>
+                                                        </div>
+                                                        <div style="height: 200px; position: relative;">
+                                                            <canvas :id="'detail-chart-' + game.filename"></canvas>
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Move quality histogram — labelled segments -->
+                                                    <div class="hist-block">
+                                                        <div class="hist-bar-row">
+                                                            <div v-for="(count, i) in gameDetail.summary.histogram"
+                                                                 :key="i"
+                                                                 class="hist-seg"
+                                                                 :style="{ flex: count || 0, background: histColors[i] }"
+                                                                 :title="histLabels[i] + ': ' + count">
+                                                            </div>
+                                                        </div>
+                                                        <div class="hist-legend">
+                                                            <span v-for="(count, i) in gameDetail.summary.histogram"
+                                                                  :key="i" class="hist-legend-item"
+                                                                  v-show="count > 0">
+                                                                <span class="hist-dot" :style="{ background: histColors[i] }"></span>
+                                                                {{ histLabels[i] }}: <strong>{{ count }}</strong>
+                                                            </span>
+                                                        </div>
+                                                    </div>
+
+                                                    <div v-if="gameDetail.undo_details?.length" class="undo-list">
+                                                        <h3>{{ t('undoDetails') }}</h3>
+                                                        <ul>
+                                                            <li v-for="u in gameDetail.undo_details" :key="u.move_number">
+                                                                {{ t('moveLabel') }} {{ u.move_number }}:
+                                                                {{ u.player }} {{ u.coordinate }}
+                                                                ({{ t('pointsLostLabel') }}: {{ u.points_lost }},
+                                                                 {{ t('bestMoveLabel') }}: {{ u.best_move_coord || '—' }})
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/static/js/i18n.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

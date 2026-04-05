@@ -1,1 +1,28 @@
 .DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.mypy_cache/
+.ruff_cache/
+
+# Images copied from katrain (not source-controlled — copy from .venv at setup)
+app/static/img/
+
+# Training data (personal SGF files)
+training/
+self-play/
+
+# Runtime / editor
+*.log
+.env
+.env.*
+.idea/
+.vscode/
