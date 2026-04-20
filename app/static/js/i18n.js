@@ -85,10 +85,6 @@ const messages = {
         moveQualityLegend: "着手质量",
         humanMoves: "你的着手",
 
-        // Points lost std-dev band labels (hidden from legend/tooltip)
-        ptLossUpper: "目损 +1σ",
-        ptLossLower: "目损 -1σ",
-
         // Phase breakdown
         phaseBreakdown: "阶段分析",
         phaseOpening: "布局",
@@ -101,7 +97,7 @@ const messages = {
         // Tooltips
         tooltips: {
             avgPointsLost: "每手棋与 KataGo 最优解之间的平均目数差距，越低越好。0 = 完美；~1 = 稳健；~2 以上 = 频繁出错。",
-            progressChart: "实线为每局平均目损。阴影区域为该局每手目损的 \u00b11\u03c3——区间越窄说明发挥越稳定，越宽则说明存在少数严重失误拖低整体水平。",
+            progressChart: "实线为每局平均目损。指标下降说明你在随着时间推移减少了失误并能更好地寻找最优解。",
             avgPolicyRank: "你的着手与 KataGo 直觉（策略网络）的吻合程度。排名第 1 表示你的选点与 AI 第一直觉完全一致。平均排名越低，说明你的棋感与强力 AI 越接近。注意：排名第 1 不代表没有目损。",
             bestMoveRate: "你的着手与 KataGo 唯一最优解完全一致的比例。即使是高段棋手也很少超过 50%，此指标最适合用来追踪自身的纵向进步。",
             phaseBreakdown: "按对局阶段分别统计的平均目损，采用 KataGo 在 19 路棋盘上的划分标准：布局 = 第 1\u201350 手，中盘 = 第 51\u2013144 手，官子 = 第 145 手以后。若某阶段你的着手不足 5 手，则显示\u201c\u2014\u201d。",
@@ -188,10 +184,6 @@ const messages = {
         moveQualityLegend: "Move Quality",
         humanMoves: "Your moves",
 
-        // Points lost std-dev band labels (hidden from legend/tooltip)
-        ptLossUpper: "Pts Lost +1σ",
-        ptLossLower: "Pts Lost -1σ",
-
         // Phase breakdown
         phaseBreakdown: "Phase Breakdown",
         phaseOpening: "Opening",
@@ -204,7 +196,7 @@ const messages = {
         // Tooltips
         tooltips: {
             avgPointsLost: "Average territory lost per move compared to KataGo's top suggestion. Lower is better. 0 = perfect play; ~1 = solid; ~2+ = frequent mistakes.",
-            progressChart: "The solid line is your average points lost per game. The shaded band shows \u00b11\u03c3 of your per-move losses within that game. A narrowing band over time means more consistent play with fewer one-off blunders.",
+            progressChart: "The solid line is your average points lost per game. A downward trend indicates you are making fewer costly mistakes over time.",
             avgPolicyRank: "How closely your moves match KataGo's intuition (policy network). Rank #1 means your move was the AI's first instinct. Lower average = your moves align more naturally with strong AI intuition. Note: rank #1 doesn't guarantee zero points lost.",
             bestMoveRate: "Percentage of your moves that exactly matched KataGo's single best suggestion. Even strong players score below 50% — best used for tracking your own trend over time.",
             phaseBreakdown: "Average points lost broken down by game phase, using KataGo's boundaries on a 19\u00d719 board: Opening = moves 1\u201350, Midgame = moves 51\u2013144, Endgame = moves 145+. Shows '\u2014' if fewer than 5 of your moves fell in that phase.",

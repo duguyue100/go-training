@@ -15,7 +15,7 @@ A personal training progress dashboard for [KaTrain](https://github.com/sanderla
 ## ✨ Features
 
 - 📊 Per-game statistics: average points lost, std-dev consistency band, best move rate, policy rank
-- 📈 Progress charts over time with ±1σ error bands
+- 📈 Progress charts over time
 - 🎯 Move quality histogram (KaTrain's 6-bucket evaluation scale)
 - 🔍 Per-game drill-down: interactive Go board, score/winrate trajectory, phase breakdown (opening / midgame / endgame), undo details
 - ⚡ Live updates via WebSocket — drop a new SGF into `training/` and the dashboard refreshes automatically

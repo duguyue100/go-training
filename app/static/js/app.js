@@ -390,34 +390,12 @@ const app = createApp({
             progressChart = destroyChart(progressChart);
 
             const trends = stats.value.trends;
-            // Build ±1σ bands: upper = mean + stddev, lower = mean - stddev (clamped to 0)
-            const upperBand = trends.mean_points_lost.map((m, i) => {
-                const s = trends.stddev_points_lost[i];
-                return s != null ? m + s : null;
-            });
-            const lowerBand = trends.mean_points_lost.map((m, i) => {
-                const s = trends.stddev_points_lost[i];
-                return s != null ? Math.max(0, m - s) : null;
-            });
 
             progressChart = new Chart(canvas, {
                 type: 'line',
                 data: {
                     labels: trends.dates,
                     datasets: [
-                        {
-                            // Upper bound — drawn first so fill '-1' targets the mean line
-                            label: t('ptLossUpper'),
-                            data: upperBand,
-                            borderColor: 'rgba(37, 99, 235, 0.25)',
-                            backgroundColor: 'rgba(37, 99, 235, 0.10)',
-                            borderWidth: 1,
-                            borderDash: [3, 3],
-                            pointRadius: 0,
-                            fill: '+1',
-                            tension: 0.3,
-                            yAxisID: 'y-loss',
-                        },
                         {
                             label: t('avgPointsLost'),
                             data: trends.mean_points_lost,
@@ -428,20 +406,7 @@ const app = createApp({
                             pointRadius: 4,
                             borderWidth: 2,
                             yAxisID: 'y-loss',
-                        },
-                        {
-                            // Lower bound
-                            label: t('ptLossLower'),
-                            data: lowerBand,
-                            borderColor: 'rgba(37, 99, 235, 0.25)',
-                            backgroundColor: 'rgba(37, 99, 235, 0.10)',
-                            borderWidth: 1,
-                            borderDash: [3, 3],
-                            pointRadius: 0,
-                            fill: false,
-                            tension: 0.3,
-                            yAxisID: 'y-loss',
-                        },
+                        }
                     ]
                 },
                 options: {
@@ -462,11 +427,9 @@ const app = createApp({
                                     if (ctx.dataset.label === t('avgPointsLost')) {
                                         const i = ctx.dataIndex;
                                         const mean = trends.mean_points_lost[i];
-                                        const sd = trends.stddev_points_lost[i];
-                                        const sdStr = sd != null ? ` ±${sd.toFixed(2)}` : '';
-                                        return `${ctx.dataset.label}: ${mean.toFixed(2)}${sdStr}`;
+                                        return `${ctx.dataset.label}: ${mean.toFixed(2)}`;
                                     }
-                                    return null; // hide upper/lower band from tooltip
+                                    return null;
                                 }
                             }
                         }
