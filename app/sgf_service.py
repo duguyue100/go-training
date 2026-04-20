@@ -240,34 +240,53 @@ def detect_game_mode(human_name: str) -> str:
 def _collect_undo_events(root: SGFNode) -> list[UndoEvent]:
     """
     Walk the full SGF tree to find undo branch nodes.
-    Undo nodes are non-first children that contain the auto-undo marker.
+    An undo occurs whenever the human player explores an alternate branch
+    (a non-first child node).
     """
     undos = []
 
-    def _walk(node: SGFNode):
+    def _walk(node: SGFNode, depth: int):
         if len(node.children) > 1:
-            # Check non-first children for undo markers
+            # Every alternate branch (non-first child) represents an undone move variation.
             for child in node.children[1:]:
+                # Get basic info from the child node
+                player = "B" if child.get_property("B", None) is not None else ("W" if child.get_property("W", None) is not None else "")
+                coord = ""
+                try:
+                    if child.move:
+                        coord = child.move.gtp() if not child.move.is_pass else "pass"
+                except Exception:
+                    pass
+
                 comment = child.get_property("C", "")
-                if comment and any(
-                    m in comment
-                    for m in ["自动悔棋", "自動悔棋", "automatically undone"]
-                ):
-                    parsed = parse_comment(comment)
-                    undos.append(
-                        UndoEvent(
-                            move_number=parsed.move_number,
-                            player=parsed.player,
-                            coordinate=parsed.coordinate,
-                            points_lost=parsed.points_lost,
-                            best_move_coord=parsed.best_move_coord,
-                        )
+                parsed = parse_comment(comment) if comment else ParsedComment()
+
+                # If parsed comment lacks info, fill it from node data
+                if not parsed.player:
+                    parsed.player = player
+                if not parsed.coordinate:
+                    parsed.coordinate = coord
+                if parsed.move_number == 0:
+                    parsed.move_number = depth + 1
+                
+                undos.append(
+                    UndoEvent(
+                        move_number=parsed.move_number,
+                        player=parsed.player,
+                        coordinate=parsed.coordinate,
+                        points_lost=parsed.points_lost,
+                        best_move_coord=parsed.best_move_coord,
                     )
+                )
+                
+                # Also walk the alternate branch to find nested undos
+                _walk(child, depth + 1)
+
         # Continue down main branch
         if node.children:
-            _walk(node.children[0])
+            _walk(node.children[0], depth + 1)
 
-    _walk(root)
+    _walk(root, 0)
     return undos
 
 
