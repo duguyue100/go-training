@@ -143,6 +143,23 @@ def parse_sgf_file(filepath: Path) -> GameDetail:
     # --- Step 4: Walk branches for undo events ---
     undo_events = _collect_undo_events(root)
 
+    # --- Step 4.5: Impute missing point losses ---
+    # KaTrain only writes "目数损失: x.x" to the comment if the loss is > 0.5.
+    # To get accurate average point loss, we must calculate the implicit loss
+    # for moves that don't have it explicitly written in the text.
+    prev_score = None
+    for c in main_line_comments:
+        if c.score is not None:
+            if prev_score is not None:
+                raw_loss = (prev_score - c.score) if c.player == "B" else (c.score - prev_score)
+                calc_loss = max(0.0, raw_loss)
+                if not c.has_explicit_loss:
+                    c.points_lost = calc_loss
+            else:
+                if not c.has_explicit_loss:
+                    c.points_lost = 0.0
+            prev_score = c.score
+
     # --- Step 5: Compute statistics ---
     human_comments = [c for c in main_line_comments if c.player == human_player]
 
